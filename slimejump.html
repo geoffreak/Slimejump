@@ -1,0 +1,256 @@
+<html>    
+<head>   
+	<title>Slime Jump by Josh DeVinney</title> 
+	<style>    
+		#player {    
+			background-color: #bada55;  
+			position: absolute;  
+			overflow: hidden; 
+			/*box-shadow: 1px 1px 30px 4px #000;    */
+			/*border-radius: 25px;  */  
+		}
+		#player img {
+			position: absolute;
+		}
+		.platform {
+			background-color: #C00; 
+			position: absolute;   
+			/*box-shadow: 1px 1px 10px 1px #000;    
+			border-radius: 2px;   */
+		}
+	</style>    
+</head>    
+<body>    
+	<div id="instructions">Make the slime hop from platform to platform with the space bar, left arrow, and right arrow keys!</div>
+	<div id="player"></div>  
+	<div id="platform1" class="platform"></div>
+	<div id="platform2" class="platform"></div>
+	<div id="platform3" class="platform"></div>    
+<script>    
+player = document.getElementById('player');
+var platforms = []; 
+
+platforms.push({    
+	x: 500,     
+	y: 400,
+	width: 250,
+	height: 25,
+	obj: document.getElementById('platform2')    
+}); 
+platforms.push({    
+	x: 300,     
+	y: 300,
+	width: 250,
+	height: 25,
+	obj: document.getElementById('platform3')    
+}); 
+platforms.push({    
+	x: 100,     
+	y: 500,
+	width: 250,
+	height: 25,
+	obj: document.getElementById('platform1')    
+}); 
+	
+var playerPosition = {    
+	x: 200,     
+	y: 300,
+	width: 50,
+	height: 50    
+};    
+
+	
+var isJumping = false,    
+	velocity = 0,
+
+jump = function() {    
+	if (!isJumping) {    
+		isJumping = true;    
+		velocity = 20;    
+	}    
+},    
+
+applyGravity = function() {   
+	var platform = false, html = '';
+	for (p in platforms) {
+		var platformPosition = platforms[p];
+		var horizontallyOnPlatform = 
+			(playerPosition.x <= platformPosition.x+platformPosition.width) &&
+			(playerPosition.x+playerPosition.width >= platformPosition.x);
+		var verticallyOnPlatformNow = 
+			(playerPosition.y+playerPosition.height == platformPosition.y);
+		var verticallyFallingOnPlatformNext = 
+			(playerPosition.y+playerPosition.height <= platformPosition.y) && //currently above platform, and...
+			(playerPosition.y+playerPosition.height-velocity >= platformPosition.y) //soon to be below top of platform
+		if (horizontallyOnPlatform && (verticallyOnPlatformNow || verticallyFallingOnPlatformNext))
+			platform = platformPosition;
+	}
+	if (velocity <= 0 && platform) { 
+		isJumping = false;    
+		velocity = 0;
+		playerPosition.y = platform.y - playerPosition.height;
+		//jump(); 
+	}
+	else { //if there's not something below us, apply gravity
+		isJumping = true;
+		playerPosition.y -= velocity;
+		if (playerPosition.y > 1000) { //respawn on the middle of a platform if we've fallen off
+			respawn();
+		}
+		if (velocity >= -30) //terminal velocity limiter
+			velocity--;
+	}
+};  
+
+var respawn = function() {
+	if (platforms.length) { //respawn on the middle of a platform if there is one
+		var rand = Math.round(Math.random() * (platforms.length - 1)) //pick a platform, any platform
+		playerPosition.y = platforms[rand].y - playerPosition.height;
+		playerPosition.x = platforms[rand].x + platforms[rand].width / 2 - playerPosition.width / 2;
+	}
+	else {
+		playerPosition.y = 300;
+		playerPosition.x = 200;
+	}
+}
+
+var detectPropertyPrefix = function(property) {    
+   var prefixes = ['Moz', 'Ms', 'Webkit', 'O'];    
+   for (var i=0, j=prefixes.length; i < j; i++) {    
+	   if (typeof document.body.style[prefixes[i]+property] !== 'undefined') {    
+		   return prefixes[i]+property;    
+	   }    
+   }        
+   return false;        
+};    
+	
+var moveObject = function(object, position) {     
+   var transformSupport =  detectPropertyPrefix('Transform');      
+   if (transformSupport === false) {      
+	   object.style.top = position.y + "px";      
+	   object.style.left = position.x + "px";      
+   } else {      
+	   object.style[transformSupport] = 'translate(' + position.x + 'px, ' + position.y + 'px)';      
+   }      
+   object.style.width = position.width;
+   object.style.height = position.height;
+} 
+
+var animation = {
+	state: 0,
+	action: 0,
+	calls: 0,
+	direction: 1
+};
+var image = document.createElement('img');
+image.src = 'http://dl.dropbox.com/u/7736782/slime.png';
+player.appendChild(image);
+var animate = function() {
+	//if (velocity > 5) animation.action = 1;
+	//else if (velocity < -5) animation.action = 2;
+	
+	var x = -animation.state * playerPosition.width;
+	var y = -animation.action * playerPosition.height;
+	
+	image.style.top = y;
+	image.style.left = x;
+	
+	if (animation.calls == 0) {
+		animation.state += animation.direction;
+		if (animation.state == 5 || animation.state == 0)
+			animation.direction = -animation.direction;
+	}
+	animation.calls++;
+	animation.calls %= 6;
+}
+
+var loop = (function () {    
+  return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame ||    
+  function ( /* function */ callback, /* DOMElement */ element) {    
+	window.setTimeout(callback, 1000 / 60);    
+  };    
+})();    
+
+var pressed = {
+	space: false,
+	up: false,
+	down: false,
+	left: false,
+	right: false
+};
+
+var handleKeyPresses = function () {
+	if (pressed.space && !pressed.spaceLimiter) {
+		pressed.spaceLimiter = true; //no double jumps
+		jump();
+	}
+	if (pressed.right && isJumping) {
+		playerPosition.x += 2;
+	}
+	else if (pressed.left && isJumping) {
+		playerPosition.x -= 2;
+	}
+	if (pressed.right) {
+		animation.action = 4;
+	}
+	else if (pressed.left) {
+		animation.action = 3;
+	}
+	else if (!pressed.space) {
+		animation.action = 0;
+	}
+}
+
+window.addEventListener('keydown', function (event) {    
+	if (event.keyCode == 32) {
+		pressed.space = true;
+	}
+	else if (event.keyCode === 37) {    
+		pressed.left = true;    
+	}    
+	else if (event.keyCode === 38) {    
+		pressed.up = true;    
+	}    
+	else if (event.keyCode === 39) {    
+		pressed.right = true;    
+	}    
+	else if (event.keyCode === 40) {    
+		pressed.down = true;    
+	}  
+}, false);    
+
+//if the key will be released, change the states object    
+window.addEventListener('keyup', function (event) {    
+	if (event.keyCode == 32) {
+		pressed.space = false;
+		pressed.spaceLimiter = false;
+	}
+	else if (event.keyCode === 37) {    
+		pressed.left = false;    
+	}    
+	else if (event.keyCode === 38) {    
+		pressed.up = false;    
+	}    
+	else if (event.keyCode === 39) {    
+		pressed.right = false;    
+	}    
+	else if (event.keyCode === 40) {    
+		pressed.down = false;    
+	}   
+}, false);    
+
+var mainLoop = function() {    
+	applyGravity();    
+	handleKeyPresses();
+	animate();
+	moveObject(player, playerPosition);    
+	loop(mainLoop);    
+}    
+for (p in platforms)
+	moveObject(platforms[p].obj, platforms[p]);  
+respawn();
+mainLoop();    
+	
+</script>    
+</body>    
+</html>  
